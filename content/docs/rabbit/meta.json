@@ -1,0 +1,17 @@
+{
+  "title": "Rabbit",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "---入门---",
+    "compile",
+    "project",
+    "---使用---",
+    "pages",
+    "ports-waveform",
+    "---参考---",
+    "architecture",
+    "add-component",
+    "z...a"
+  ]
+}

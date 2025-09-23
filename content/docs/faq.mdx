@@ -1,0 +1,22 @@
+---
+title: FAQ
+description: 常见问题及解决方法
+---
+
+import { Accordion, Accordions} from 'fumadocs-ui/components/accordion';
+
+## UFDE
+
+## Rabbit
+
+<Accordions>
+  <Accordion title="为什么LED颜色始终是红色？">
+    <p>这是以往版本遗留的 bug，现在已经修复。建议从官方仓库编译最新版本。</p>
+  </Accordion>
+  <Accordion title="Windows平台上为什么始终不能连接上开发板？">
+    <p>Windows 上需要安装 [Zadig](https://zadig.akeo.ie/) 将 libusb 驱动替换为 WinUSB 驱动。如果安装后仍然无法连接，请尝试重启电脑。若问题依旧，请联系助教。</p>
+  </Accordion>
+  <Accordion title="我在Windows平台上尝试编译libusb，但是编译失败了。">
+    <p>更改编译选项，不将Warning作为错误处理。</p>
+  </Accordion>
+</Accordions>

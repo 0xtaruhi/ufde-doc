@@ -1,0 +1,77 @@
+---
+title: 界面与页面导航
+description: 了解 Rabbit 主界面、工具栏与组件库的核心交互
+---
+
+## 界面概览
+
+主窗口由 顶部工具栏、组件面板（中央画布）与底部提示栏 组成：
+
+- **工具栏**：分为 Project 与 Components 两个页签
+  - Project：新建/打开/保存工程、设置、下载位流、运行/停止、频率设置
+  - Components：按类别列出可添加的可视化组件，点击即加入面板
+- **组件面板**：承载所有组件卡片，支持拖拽布局、删除与设置
+- **提示栏**：显示 FDP3P7 连接状态（USB Connected/Disconnected）
+
+![Main Window](/rabbit/images/MainWindow.png)
+
+![Toolbar Tabs](/rabbit/images/ComponentsLibrary-old.png)
+
+## 页面切换
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### 切换页签
+
+在工具栏点击页签切换 Project/Components 两页。
+
+### 添加组件
+
+进入 Components 后，点击组件图标即可将其添加到面板。
+
+### 返回 Project
+
+可进行工程与运行相关操作。
+
+</div>
+
+## 组件卡片交互
+
+- 拖拽卡片可更改位置
+- 标题栏包含：名称、设置、删除
+- 设置对话框中最常见选项：
+  - Name：显示名称
+  - Port：端口绑定；需先在工程设置中指定约束文件
+  - Active Mode：高/低有效
+  - Color / Vision Persistence：颜色与视觉延迟（适用于 LED/矩阵/数码管等）
+
+## 快速上手：添加与配置组件
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### 打开 Components 页签
+
+在工具栏切换至 Components。
+
+### 添加组件
+
+点击任意组件（例如 LED），它将以卡片形式加入面板。
+
+### 绑定端口
+
+点击卡片右上角设置按钮，选择端口（先在工程设置中加载约束文件）。
+
+### 运行并查看效果
+
+切回 Project，点击 Run。若信号驱动正确，组件将实时响应。
+
+</div>
+
+## 组件类别速览
+
+- 输入类：Switch、Button、KeyPad、Small Keypad、Rotary Button、PS2Keyboard
+- 输出类：LED、TextLCD、GraphicLCD、SegmentDisplay、FourDigitSegmentDisplay、LEDMatrix
+
+详细端口定义与时序说明，参见《端口/引脚与波形》。
+
+![Components Library](/rabbit/images/ComponentsLibrary.png)

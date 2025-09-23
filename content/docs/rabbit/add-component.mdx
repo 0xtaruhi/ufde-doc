@@ -1,0 +1,263 @@
+---
+title: 扩展：新增组件
+description: 继承抽象基类、实现绘制/数据、注册到工具栏并添加图标
+---
+
+## 前置条件
+
+- 熟悉 Qt6（QWidget/QPainter）与 C++20
+- 阅读源码中 `AbstractComponent`、`AbstractRawComponent`、对话框相关类
+
+![Component code structure](/rabbit/images/Component-code.png)
+
+## 基本步骤
+
+1) 在 `rabbit_App/include/Components` 新增头文件 `NewComponent.h`
+2) 在 `rabbit_App/src/Components` 新增源文件 `NewComponent.cpp`
+3) 继承 `AbstractRawComponent` 与 `AbstractComponent`，实现关键函数：
+
+- `initPorts()`：注册端口顺序
+- `paintEvent`：绘制组件
+- `reset()`：响应运行/停止
+- `processReadData(QQueue<uint64_t>&)`：消费读取队列
+- `uint64_t getWriteData() const`：编码写入数据
+- `onSettingsBtnClicked()`：弹出设置对话框
+
+可使用宏简化声明与定义：
+
+```cpp
+// header
+COMPONENT_CLASS_DECLARATION(NewComponent)
+
+// source
+COMPONENT_CLASS_DEFINITION(New, 2, 2)
+```
+
+## 设置对话框
+
+通用做法：
+
+```cpp
+void NewComponent::onSettingsBtnClicked() {
+  auto dialog = new ComponentSettingsDialog(this, this);
+  dialog->exec();
+  delete dialog;
+}
+```
+
+若需要高级设置，可继承：`ActiveModeSettingsDialog`、`VisionPersistenceSettingsDialog`、`ColorSettingsDialog` 并实现 `acceptDerivedClassSettings()`。
+
+## 注册到工具栏
+
+- 在 `Components.h`、`ComponentAction.cpp`、`ComponentsFactory.cpp` 中注册新组件
+- 放置图标到 `rabbit_App/res/icons/components` 并在 `rabbit_App/res/res.qrc` 引用
+
+![Components](/rabbit/images/ComponentsLibrary.png)
+
+## 构建与运行
+
+参考《编译与构建》，完成 xmake 配置后 `xmake build && xmake run`，在 Components 页签即可看到新组件按钮。
+
+## 实战示例：从 0 到 1 新增一个 LED 组件
+
+下面以已有的 LED 组件为例，完整展示“Raw + 包装”两层的实现方式。示例中我在关键位置增加了注释，帮助你理解每一行代码的目的，以及与框架生命周期的衔接点。
+
+### 1. 定义 Raw 组件（继承 AbstractRawComponent）
+
+头文件节选（`LEDComponent.h`）——声明职责与对外契约：
+
+```cpp
+// A raw component renders visuals, consumes read-queue, and produces write data.
+// It DOES NOT manage title bar or layout chrome; wrapper component handles that.
+class LEDRawComponent : public AbstractRawComponent {
+  Q_OBJECT
+
+public:
+  LEDRawComponent(QWidget *parent = nullptr);
+  virtual ~LEDRawComponent();
+
+  // Called when toolbar Run/Stop toggles. Reset runtime state here.
+  void reset() override;
+  
+  // Pull-and-consume the latest batch of read values (60Hz by controller).
+  void processReadData(QQueue<uint64_t> &read_queue) override;
+  
+  // Encode current input state into a single uint64_t for device writing.
+  uint64_t getWriteData() const override;
+
+protected:
+  // Render your component. Prefer reading pre-computed states, avoid heavy work.
+  void paintEvent(QPaintEvent *event) override;
+  // Register ports in a deterministic order. Order affects data packing.
+  void initPorts() override;
+
+public slots:
+  // Optional: small setters to decouple computation and painting.
+  void onSetLevel(float level) { level_ = level; }
+
+private:
+  QLabel *led_picture_;           // decorative static icon (optional)
+  float level_ = 0.0f;            // 0..1 brightness level derived from reads
+};
+```
+
+实现（`LEDComponent.cpp`）中的几个关键点——端口顺序、读队列解析与绘制：
+
+```cpp
+LEDRawComponent::LEDRawComponent(QWidget *parent)
+    : AbstractRawComponent(parent) {
+  // 1) Declare supported and default colors exposed in Settings dialog
+  setSupportedColors({{tr("Red"), Qt::red},
+                      {tr("Green"), Qt::green},
+                      {tr("Blue"), Qt::blue},
+                      {tr("Yellow"), Qt::yellow},
+                      {tr("Black"), Qt::black},
+                      {tr("White"), Qt::white}});
+  appendColor(tr("LED color"), Qt::red);
+
+  // 2) Register ports IMMEDIATELY to lock packing order
+  initPorts();
+
+  // 3) Basic layout: a scalable icon, margins clipped to tile bounds
+  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  led_picture_ = new QLabel(this);
+  led_picture_->setPixmap(QPixmap(":/icons/icons/icons8-LED-94.png"));
+  led_picture_->setScaledContents(true);
+  led_picture_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+
+  auto layout = new QHBoxLayout(this);
+  layout->addWidget(led_picture_);
+  layout->setContentsMargins(0, 0, 0, 0);
+  setLayout(layout);
+}
+
+void LEDRawComponent::reset() {
+  level_ = 0.0f;  // clear runtime states to defaults
+  update();
+}
+
+void LEDRawComponent::processReadData(QQueue<uint64_t> &read_queue) {
+  if (read_queue.isEmpty()) return;
+
+  // Aggregate bit-set counts for each pin across the batch
+  std::array<int, 64> value_count = {0};
+  for (auto value : read_queue) {
+    for (auto i = 0; i != 64; ++i) {
+      if ((value >> i) & 0x1) ++value_count[i];
+    }
+  }
+  auto queue_size = read_queue.size();
+  // IMPORTANT: hardware index 0 is reserved for clock, hence the -1 offset
+  auto pin_index = output_ports_[0].pin_index - 1; // 注意：0 号为时钟
+  auto level = static_cast<float>(value_count[pin_index]) / queue_size;
+  // Respect active polarity from Settings dialog
+  onSetLevel(is_low_active_ ? 1.0f - level : level);
+}
+
+// LED is a pure output in this demo — no data to write back
+uint64_t LEDRawComponent::getWriteData() const { return 0; }
+
+void LEDRawComponent::paintEvent(QPaintEvent *event) {
+  QPainter painter(this);
+  painter.setRenderHint(QPainter::Antialiasing);
+  QRadialGradient gradient(this->rect().center(), 20);
+  gradient.setColorAt(0, component_colors_[tr("LED color")]); // user chosen
+  gradient.setColorAt(1, Qt::transparent);
+  painter.setOpacity(level_); // 0..1 derived from read_queue statistics
+  painter.setBrush(gradient);
+  painter.setPen(Qt::transparent);
+  painter.drawEllipse(this->rect());
+}
+
+void LEDRawComponent::initPorts() {
+  // Define 1 output named "LED".
+  // The position in output_ports_ decides the bit position in packing.
+  appendPort(output_ports_, "LED", ports::PortType::Output);
+}
+```
+
+要点：
+
+- 端口顺序通过 `appendPort` 决定，后续读写数据的编码/解码依赖这个顺序。
+- `pin_index - 1`：因为 0 号索引用于时钟，实际端口索引从 1 开始。
+- 读队列会在 `ValueUpdateController` 频率下刷入，Raw 组件只需消耗并更新自己的可视状态。
+
+提示：对于有“输入行为”的组件（例如 Switch/Button/KeyPad），需要在 `getWriteData()` 中把当前交互状态合成为 `uint64_t`；对于“纯输出”组件（例如 LED/GraphicLCD 的显示端），`getWriteData()` 可以返回 0。
+
+### 2. 包装组件（继承 AbstractComponent）与宏
+
+使用宏可快速生成包装组件类型与格子占位，减少模板样板代码：
+
+```cpp
+// 生成 LEDComponent 类、类型标识和 2x2 的网格占位
+COMPONENT_CLASS_DEFINITION(LED, 2, 2)
+
+void LEDComponent::onSettingsBtnClicked() {
+  auto settings_dialog = new LEDSettingsDialog(this, this);
+  settings_dialog->exec();
+  delete settings_dialog;
+}
+```
+
+当你创建自己的组件时，例如 `MySensor`：
+
+```cpp
+// MySensor.h
+COMPONENT_CLASS_DECLARATION(MySensor) // 声明包装组件类与类型字符串
+
+class MySensorRawComponent : public AbstractRawComponent {
+  Q_OBJECT
+  // Implement: reset / processReadData / getWriteData
+  // And protected: initPorts / paintEvent
+};
+
+// MySensor.cpp
+COMPONENT_CLASS_DEFINITION(MySensor, 2, 2) // 包装类: 2x2 占位，仅示例
+
+void MySensorComponent::onSettingsBtnClicked() {
+  auto dialog = new ComponentSettingsDialog(this, this);
+  dialog->exec();
+  delete dialog;
+}
+```
+
+### 3. 在工具栏显示：注册与图标
+
+- 在 `rabbit_App/include/Components/Components.h` 中：
+  - 将头文件 `#include "MySensorComponent.h"` 加入；
+  - 把名字写进 `inputComponents()` 或 `outputComponents()` 返回列表（如 `"MySensor"`）。
+- 在 `ComponentsFactory.cpp`、`ComponentAction.cpp` 中添加工厂创建与动作条目（仿照现有组件粘贴修改）。
+- 将图标 `*.png` 放入 `rabbit_App/res/icons/components/`，并在 `rabbit_App/res/res.qrc` 中加入资源路径。
+
+### 4. 端口、设置与视觉属性建议
+
+- 端口命名与位宽：保持与硬件接口一致，命名上尽可能语义化（如 `ROW[0:3]`、`DB[0:7]`）。
+- 低/高有效：统一通过 `is_low_active_` 处理，必要时在设置对话框中暴露切换项。
+- 颜色与视觉延迟：复用 `supported_colors_`、`component_colors_`、`vision_persistence_`，在对话框中允许用户定制，显示端通过 `painter.setOpacity(...)` 等实现渐变/拖尾。
+
+补充说明：
+
+- 数据流：设备 → 读队列 → `processReadData`（解码/聚合）→ 更新成员变量 → `paintEvent` 显示。
+- 写回：交互产生状态 → `getWriteData` 打包位域 → 框架下发设备。
+- 性能：在 `processReadData` 计算，在 `paintEvent` 仅读取现成结果，避免阻塞 UI。
+
+### 5. 最小可运行清单（YourComponent）
+
+创建一个最小的新组件时，你至少需要：
+
+- `YourComponent.h/.cpp`（Raw + 包装 + 宏）
+- 修改 `Components.h` 引入与列出
+- 补充工厂注册/动作按钮
+- 图标与 `res.qrc` 资源
+
+完成后，编译运行，在 Components 页签即可看到并添加到画布。
+
+## 快速清单（Checklist）
+
+- [ ] Raw：实现 `reset / processReadData / getWriteData / initPorts / paintEvent`
+- [ ] Wrapper：`COMPONENT_CLASS_DECLARATION/DEFINITION` + `onSettingsBtnClicked`
+- [ ] 注册：`Components.h` 引入并加入 input/output 列表；工厂与动作条目
+- [ ] 资源：图标放入 `res/icons/components` 且在 `res.qrc` 引用
+- [ ] 设置：需要的特性（ActiveMode/Color/VisionPersistence）是否已暴露
+
+

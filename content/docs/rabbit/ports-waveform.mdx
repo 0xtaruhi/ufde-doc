@@ -1,0 +1,45 @@
+---
+title: 端口/引脚与波形
+description: 端口映射、读写数据格式与 GTKWave 波形分析
+---
+
+## 端口映射与约束
+
+- 在工程设置中加载约束文件后，可在组件设置中的 Port 下拉框选择逻辑端口
+- 端口顺序会影响 `processReadData/getWriteData` 的数据编码与解码
+- 参阅源码 `Ports/PinInfo.*` 了解端口索引与打包格式
+
+## 读写数据格式要点
+
+- 输出端口索引从 1 开始（0 为时钟），读取时需注意偏移
+- `processReadData(QQueue<uint64_t>&)` 周期消费读取队列更新显示
+- `getWriteData()` 聚合当前组件输入状态，框架统一下发
+
+## 波形生成与查看
+
+- 在 Settings 中启用 Generate Waveform，运行结束后会在工程目录生成：
+  - `RabbitWaveForm.vcd`
+  - `RabbitReadData.txt`
+  - `RabbitWriteData.txt`
+- 使用 GTKWave 打开 VCD 即可查看信号变化
+
+![WaveForm](/rabbit/images/WaveForm.png)
+
+提示：VCD 文件运行每次会覆盖，如需保留历史请手动另存。
+
+## 组件端口速查（节选）
+
+- Switch：`SW`
+- Button：`BTN`
+- KeyPad：`ROW[0:3]`、`COL[0:3]`
+- Small Keypad：`ROW[0:3]`、`COL[0:2]`
+- Rotary Button：`RPB[0:10]`
+- PS2Keyboard：`PCLK`、`PDATA`
+- LED：`LED`
+- TextLCD：`EN`、`DB[0:7]`
+- GraphicLCD：`DB[0:7]`、`DI`、`RW`、`EN`、`CS1`、`CS2`、`RST`
+- SegmentDisplay：`A-G`、`DP`
+- FourDigitSegmentDisplay：`A-G`、`DP`、`SEL[0:3]`
+- LEDMatrix：`ROW[0:x]`、`COL[0:x]`
+
+

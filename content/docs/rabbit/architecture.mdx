@@ -1,0 +1,57 @@
+---
+title: 架构与组件库
+description: Rabbit 软件分层、数据通道与组件抽象（AbstractComponent/RawComponent）
+---
+
+## 架构总览
+
+Rabbit 的核心分层：GUI 组件层、组件抽象层、端口/值更新控制层、USB/驱动层。
+
+![Architecture](/rabbit/images/Architecture.png)
+
+- GUI：基于 Qt6 Widgets 渲染可视化组件卡片
+- 组件抽象：`AbstractComponent` + `AbstractRawComponent`，统一标题栏、设置与绘制流程
+- 值更新：`ValueUpdateController`/`PanelGuiUpdateController` 负责拉取/分发数据，约 60Hz 刷新
+- 设备通信：`rabbit_VLFD` 与 `VLFDLibUSBDriver` 通过 USB 与 FDP3P7 交互
+
+参考：`ref/Rabbit/doc/RabbitDevDoc.md`
+
+## 组件库结构
+
+每个可视化组件由两部分组成：
+
+- 原始组件 Raw（继承 `AbstractRawComponent`）：处理绘制、输入事件、读写数据
+- 组件包装 Component（继承 `AbstractComponent`）：提供标题栏、设置入口、尺寸信息
+
+关键职责：
+
+- `initPorts()`：注册输入/输出端口，顺序会影响数据打包/解包
+- `processReadData(QQueue<uint64_t>&)`：消费读取队列更新显示
+- `getWriteData() const`：将当前输入状态编码为写入数据
+- `onSettingsBtnClicked()`：打开设置对话框（名称、端口、模式、颜色、视觉延迟等）
+
+## 典型数据流
+
+1. FPGA 端通过 USB 上报采样值；
+2. 设备层写入读取队列；
+3. 值更新控制器轮询，交给各组件的 `processReadData`；
+4. 组件根据端口映射刷新 UI；
+5. 用户操作组件，`getWriteData` 聚合写入数据，周期性下发至 FPGA。
+
+## 组件一览
+
+- 输入：Switch、Button、KeyPad、Small Keypad、Rotary Button、PS2Keyboard
+- 输出：LED、TextLCD、GraphicLCD、SegmentDisplay、FourDigitSegmentDisplay、LEDMatrix
+
+详细端口定义请见《端口/引脚与波形》。
+
+## 扩展与注册
+
+新增组件时：
+
+1) 在 `rabbit_App/include/Components` 与 `rabbit_App/src/Components` 新增头/源文件；
+2) 继承 `AbstractRawComponent` 与 `AbstractComponent`，实现上述关键函数；
+3) 在 `Components.h`、`ComponentAction.cpp`、`ComponentsFactory.cpp` 完成注册；
+4) 将图标放入 `rabbit_App/res/icons/components` 并在 `res.qrc` 引用。
+
+更多细节见《扩展：新增组件》。

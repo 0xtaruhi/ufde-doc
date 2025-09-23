@@ -1,0 +1,72 @@
+---
+title: 编译与构建
+description: 从环境准备到 Rabbit 桌面端的完整构建流程
+---
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### 准备依赖
+
+安装 [Qt 6.5+](https://www.qt.io/product/qt6)、[xmake](https://xmake.io/#/)、[C++20 编译器](https://en.cppreference.com/w/cpp/compiler_support)与 [libusb](https://libusb.info/)。
+
+- macOS: `brew install xmake qt@6 libusb`；优先 arm64，避免混链。
+- Linux: 通过发行版包管理器安装，补齐 `libxcb`/`xcb-cursor` 运行库。例如：
+  ```bash
+  sudo apt-get install libxcb-cursor0
+  ```
+- Windows: VS2022(MSVC x64) + Qt 维护的 MSVC 构建。
+
+### 获取源码
+
+```bash
+git clone https://github.com/0xtaruhi/Rabbit.git
+cd Rabbit
+git submodule update --init --recursive
+```
+
+仅需 libusb 时：`git submodule update --init --recursive libusb`。
+
+### 构建 libusb
+
+Linux/macOS：在 `libusb` 执行 `./autogen.sh && ./configure && make`。
+
+Windows：打开 `libusb/msvc/libusb.sln` 生成静态库，复制到 `libusb/libusb/.libs/usb-1.0.lib`。
+
+若使用仓库提供的预编译库，可在 `VLFDLibUSBDriver` 选择平台产物。
+
+### 配置 Qt 并编译
+
+```bash
+xmake f --qt=/path/to/Qt/<version> -v
+xmake build
+```
+
+切换构建类型：
+
+```bash
+xmake f -m debug   # 调试构建
+xmake f -m release # 发行构建
+```
+
+### 运行与调试
+
+执行 `xmake run` 启动 GUI。连接开发板，并确认底部状态为 `USB Connected`。仅验证 GUI 时，可在设置中关闭波形生成。
+
+![USB Status](/rabbit/images/MainWindow.png)
+
+</div>
+
+### 常用指令速查
+
+| 命令 | 作用 |
+| --- | --- |
+| `xmake f --qt=<路径> -v` | 为当前平台配置 Qt 并开启详细日志 |
+| `xmake build` | 依据 `xmake.lua` 编译 Rabbit 可执行文件 |
+| `xmake run` | 运行最新构建产物并打开图形界面 |
+| `xmake clean` | 清理构建缓存，排查交叉编译问题时使用 |
+
+### 故障排查
+
+- **缺少 Qt 运行时**：Linux 出现 `libQt6Widgets.so.6` 错误时，安装 `libxcb-cursor0` 并确保 Qt 库目录位于 `LD_LIBRARY_PATH`。
+- **Mac M 系列未识别 USB**：确认使用 libusb 官方 arm64 分支构建，必要时通过 `brew install libusb` 覆盖旧版本。
+- **波形文件覆盖**：波形开启时每次运行会覆写 `RabbitWaveForm.vcd`，需要保存记录请手动另存。 

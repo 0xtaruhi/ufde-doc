@@ -1,0 +1,48 @@
+---
+title: 新建项目与设置
+description: 创建 .rbtprj、约束/位流路径配置与运行控制
+---
+
+## 新建项目
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### 打开 Project 页
+
+在主工具栏选择 Project 页签。
+
+### New Project
+
+点击 New Project，设置项目名称与路径，将生成 `.rbtprj` 工程文件。
+
+### 可选：立即配置约束/位流
+
+约束与 bitstream 也可稍后在 Settings 中设置。
+
+</div>
+
+![New Project](/rabbit/images/NewProject.png)
+
+## 工程设置
+
+点击 Settings 打开设置面板，可指定：
+
+- 约束文件（Pins/Ports 映射）
+- 位流文件（Bitstream）
+
+![Project Settings](/rabbit/images/ProjectSettings.png)
+
+## 编程与运行
+
+1) 确保底部提示栏显示 USB Connected；
+2) 单击 Download 将位流烧录至板卡；
+3) 单击 Run 开始运行，再次点击可 Stop；
+4) 可在工具栏旋钮/输入框设置时钟频率。
+
+若不希望运行期间生成波形，可在 Settings 取消勾选 Generate Waveform。
+
+## 工程文件
+
+Rabbit 会在工程目录创建 `.rbtprj` 文件，用于保存组件布局与配置。建议将工程目录纳入版本控制，并忽略编译中间产物。
+
+
