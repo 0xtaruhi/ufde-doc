@@ -1,0 +1,87 @@
+---
+title: 快速开始
+description: 以“姓名显示”为例
+---
+
+本章节主要以姓名显示为例，讲解 UFDE 的开发流程。
+
+## 前置要求
+
+- 安装 UFDE 与 Rabbit 工具。详见[下载](./download.mdx)。
+- 下载[示例 Verilog 文件](/public/files/display.v)。
+
+<Callout>
+  <p>提供的文件没有经过DC综合。以下将演示Yosys流程。 </p>
+  <p>若要使用DC流程，需要先使用提供的[DC虚拟机](./download.mdx)进行综合。</p>
+</Callout>
+
+## 修改示例文件
+
+如下是示例文件的节选。
+
+```verilog
+always @(cnt_lcd)
+   case(cnt_lcd[5:1])
+   'h0 : tmp1 = 'h0A;    // *
+   'h1 : tmp1 = 'h0A;    // *
+   'h2 : tmp1 = 'h00;    // space
+   'h3 : tmp1 = 'h37;    // W
+   'h4 : tmp1 = 'h45;    // e
+   ...
+```
+
+修改为你想要显示的字符即可。注意：字符的值是该字符的 ASCII 码减去 0x20。例如字符 A 的 ASCII 值为 0x41，则
+在代码中你需要填入`'h21`。
+
+## UFDE
+
+打开 UFDE 软件，你应该看到如下界面：
+
+![UFDE主界面](/images/UFDEMain.jpg)
+
+单击新建项目，输入项目名称和路径，导入之前修改后的 Verilog 源文件，完成创建。
+
+<Callout type="warn">路径及文件名中不可以出现**非ASCII字符**，否则后续可能出现流程失败的情况。</Callout>
+
+完成创建后如图：
+
+![UFDE项目1](/images/UFDEProject1.png)
+
+勾选`display.v`后，单击生成约束文件。
+注意，当你有多个源文件时，保证当前只勾选了一个文件（顶层文件）。不然按钮可能不会出现。
+
+单击自动分配，将顶层文件的端口映射到 FPGA 管脚。
+
+![UFDE约束](/images/UFDEConstraint.png)
+
+<Callout type="warn">
+  注意时钟端口**需要绑定至P77管脚**，不然会出现布局布线失败。若软件未自动检测到，可以手动指定。
+</Callout>
+
+自动生成完毕后，应该看到文件列表中多了一个后缀为\_cons.xml 的约束文件。
+
+接下来单击流程，勾选`Yosys`。完整运行所有流程。
+
+![UFDE Yosys流程](/images/UFDEYosys.png)
+
+在项目文件中应已出现.bit 比特流文件。
+
+## Rabbit
+
+完成 UFDE 流程后，就可以上板进行测试。由于开发板不带有过多外设，我们需要 Rabbit 软件去模拟外设。
+
+打开 Rabbit 软件，新建项目。![Rabbit新建项目](/images/RabbitNew.png)
+同样，路径中不要含有非 ASCII 字符。
+
+添加两个虚拟组件：
+![TextLCD](/images/RabbitTextLCD.png)
+![Switch](/images/RabbitSwitch.png)
+
+主界面点击 Download 下载比特流（若显示下载失败，可以用 UFDE 软件进行下载，按钮位于 UFDE 的比特流生成处）。下载成功后，
+开发板应呈现一常亮一灭的状态。
+
+单击 Run 开始运行，调节频率，应该能看到如下画面：
+
+![RabbitRun](/images/RabbitRun.png)
+
+至此完成开发全流程。
