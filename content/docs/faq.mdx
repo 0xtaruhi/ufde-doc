@@ -3,9 +3,21 @@ title: FAQ
 description: 常见问题及解决方法
 ---
 
-import { Accordion, Accordions} from 'fumadocs-ui/components/accordion';
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
 ## UFDE
+
+<Accordions>
+  <Accordion title="怎么样获取DC虚拟机？">
+    <p>参考[下载](/docs/download)章节。</p>
+  </Accordion>
+  <Accordion title="反复尝试无法从复旦云盘下载，该怎么办？">
+    <p>可以尝试联系助教线下拷贝。</p>
+  </Accordion>
+  <Accordion title="怎么在DC虚拟机中综合自己的设计？">
+    <p>虚拟机中提供了数个实例工程，可以参考。虚拟机打开时应已经启动了DC，可以参考。</p>
+  </Accordion>
+</Accordions>
 
 ## Rabbit
 
@@ -14,7 +26,10 @@ import { Accordion, Accordions} from 'fumadocs-ui/components/accordion';
     <p>这是以往版本遗留的 bug，现在已经修复。建议从官方仓库编译最新版本。</p>
   </Accordion>
   <Accordion title="Windows平台上为什么始终不能连接上开发板？">
-    <p>Windows 上需要安装 [Zadig](https://zadig.akeo.ie/) 将 libusb 驱动替换为 WinUSB 驱动。如果安装后仍然无法连接，请尝试重启电脑。若问题依旧，请联系助教。</p>
+    <p>
+      Windows 上需要安装 [Zadig](https://zadig.akeo.ie/) 将 libusb 驱动替换为 WinUSB
+      驱动。如果安装后仍然无法连接，请尝试重启电脑。若问题依旧，请联系助教。
+    </p>
   </Accordion>
   <Accordion title="我在Windows平台上尝试编译libusb，但是编译失败了。">
     <p>更改编译选项，不将Warning作为错误处理。</p>

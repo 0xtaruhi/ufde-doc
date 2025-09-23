@@ -4,12 +4,12 @@
   "pages": [
     "index",
     "---入门---",
-    "compile",
     "project",
     "---使用---",
     "pages",
     "ports-waveform",
     "---参考---",
+    "compile",
     "architecture",
     "add-component",
     "z...a"

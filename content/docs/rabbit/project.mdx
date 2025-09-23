@@ -3,6 +3,11 @@ title: 新建项目与设置
 description: 创建 .rbtprj、约束/位流路径配置与运行控制
 ---
 
+## 前置要求
+
+如果使用Windows系统，请确保已经安装[Zadig](https://zadig.akeo.ie/)。如果使用Linux系统，
+请确保使用管理员权限运行。
+
 ## 新建项目
 
 <div className="fd-steps [&_h3]:fd-step">
@@ -32,6 +37,8 @@ description: 创建 .rbtprj、约束/位流路径配置与运行控制
 
 ![Project Settings](/rabbit/images/ProjectSettings.png)
 
+约束文件可以通过ufde生成，以XML格式描述。
+
 ## 编程与运行
 
 1) 确保底部提示栏显示 USB Connected；
@@ -44,5 +51,3 @@ description: 创建 .rbtprj、约束/位流路径配置与运行控制
 ## 工程文件
 
 Rabbit 会在工程目录创建 `.rbtprj` 文件，用于保存组件布局与配置。建议将工程目录纳入版本控制，并忽略编译中间产物。
-
-

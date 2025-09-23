@@ -182,7 +182,9 @@ void LEDRawComponent::initPorts() {
 - `pin_index - 1`：因为 0 号索引用于时钟，实际端口索引从 1 开始。
 - 读队列会在 `ValueUpdateController` 频率下刷入，Raw 组件只需消耗并更新自己的可视状态。
 
-提示：对于有“输入行为”的组件（例如 Switch/Button/KeyPad），需要在 `getWriteData()` 中把当前交互状态合成为 `uint64_t`；对于“纯输出”组件（例如 LED/GraphicLCD 的显示端），`getWriteData()` 可以返回 0。
+<Callout title="提示">
+对于有“输入行为”的组件（例如 Switch/Button/KeyPad），需要在 `getWriteData()` 中把当前交互状态合成为 `uint64_t`；对于“纯输出”组件（例如 LED/GraphicLCD 的显示端），`getWriteData()` 可以返回 0。
+</Callout>
 
 ### 2. 包装组件（继承 AbstractComponent）与宏
 
