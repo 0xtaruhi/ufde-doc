@@ -1,0 +1,86 @@
+---
+title: 相关基础概念
+description: 了解UFDE并开始开发
+---
+
+## 简介
+
+UFDE 是使用 Tauri 和 Rust 开发的 FPGA 开发工具。
+其底层使用实验室自编写的从打包至比特流生成的[全流程工具链](https://github.com/0xtaruhi/FDE-Source)。
+
+## Tauri 简介
+
+Tauri 是一个用于构建跨平台桌面应用的框架：前端使用 Web 技术（如 React/Next.js），后端核心与系统能力由 Rust 提供，并通过安全的 IPC 将两者连接。
+
+- <strong>架构</strong>：Web 前端 + WebView（系统自带）+ Rust 后端（命令/插件）。
+- <strong>优势</strong>：体积小、性能好、安全性高、跨平台（Windows/macOS/Linux）。
+- <strong>系统能力</strong>：文件系统、进程、Shell、串口/USB（通过插件）、系统通知、托盘等。
+
+### 与 UFDE 的关系
+
+- UFDE 的 UI 使用 Web 技术构建，运行在 Tauri 的 WebView 中。
+- 复杂耗时与底层操作（如综合、调用外部 EDA 工具、文件与路径处理）由 Rust 实现并以 Tauri 命令暴露。
+- 通过受控的 IPC，前端仅能调用白名单中的命令，保障安全与稳定。
+
+## 使用方法
+
+完整的使用方法已经在[快速开始](../quick_start)中详细介绍。
+
+## 为什么选择 FPGA
+
+FPGA（Field-Programmable Gate Array，现场可编程门阵列）介于通用处理器（CPU/GPU）与专用芯片（ASIC）之间，具备可重构、并行度高、迭代快的特点，适合：
+
+- 高并行数据通路与低时延场景
+- 原型验证与算法加速
+- 教学与科研中对数字电路的快速试错
+
+## FPGA 基础概念
+
+- <strong>可编程逻辑资源</strong>：LUT（查找表）+ FF（触发器）组合实现任意组合/时序逻辑。
+- <strong>片上存储</strong>：BRAM/URAM 等块存储用于 FIFO、缓冲、缓存表等。
+- <strong>运算单元</strong>：DSP Slice 适合乘加（MAC）、滤波、矩阵运算等。
+- <strong>时钟与复位</strong>：PLL/MMCM 产生与管理时钟；常见有同步/异步复位策略。
+- <strong>I/O 资源</strong>：通用 IO、差分 IO、SerDes、专用硬核（如 PCIe、以太网等）。
+
+### 典型开发流程
+
+1. 设计输入：使用 Verilog/SystemVerilog/VHDL 编写 RTL 逻辑。
+2. 行为级仿真：用测试平台（Testbench）驱动设计，功能验证、波形观察。
+3. 约束编写：时钟周期、IO 引脚、例外路径等。
+4. 综合（Synthesis）：将 RTL 转为门级网表（Netlist）。
+5. 实现（Place & Route）：布局布线，映射到具体 FPGA 资源。
+6. 静态时序分析（STA）：检查建立/保持、时钟域交叉等时序收敛。
+7. 生成比特流：得到可下载到 FPGA 的 `.bit` 或等效文件。
+8. 上板与在环验证：联合外设/上位机，进行系统级测试。
+
+## EDA 基础概念
+
+EDA（Electronic Design Automation，电子设计自动化）是辅助芯片/电路设计的一整套软件工具与方法论，常见环节：
+
+- <strong>编辑与检查</strong>：语法检查、LSP 支持、格式化。
+- <strong>仿真与波形</strong>：行为级/门级仿真，常配合 GTKWave 等波形查看器。
+- <strong>综合</strong>：将 RTL 转为门级网表，进行算子映射与逻辑优化。
+- <strong>静态时序分析</strong>：在无激励情况下，全面检查最坏路径时序。
+- <strong>布局布线</strong>：将网表映射到具体器件资源与连线。
+- <strong>打包与下载</strong>：生成比特流并写入目标 FPGA。
+
+### 产物与文件
+
+- <strong>RTL</strong>：设计源码（如 `.v`/`.sv`）。
+- <strong>Netlist</strong>：综合后门级表示（如 `.v`/`.edif`）。
+- <strong>约束文件</strong>：时钟/引脚/例外路径（如 `.sdc`/`.xdc`，在UFDE中是`.xml`）。
+- <strong>比特流</strong>：下载到 FPGA 的配置（如 `.bit`）。
+
+### 常见工具生态
+
+- 开源：Yosys（综合）、nextpnr（实现）、OpenSTA（时序）、Verilator（仿真）、GTKWave（波形）。
+- 商业：Synopsys DC、Xilinx Vivado、Intel Quartus、Microchip Libero 等。
+
+## 在 UFDE 中如何落地这些概念
+
+- <strong>设计输入</strong>：将顶层 `Verilog` 源添加至项目（仅勾选顶层文件）。
+- <strong>约束</strong>：通过 UFDE 生成并编辑 `*_cons.xml`，完成管脚与时钟绑定。
+- <strong>综合/实现</strong>：在“流程”中勾选 `Yosys` 运行全流程。若使用Design Compiler进行综合，则勾选`DC`。
+- <strong>下载与联调</strong>：生成 `.bit` 后，可用 UFDE 或 Rabbit 下载，并用 Rabbit 模拟外设进行在环验证。
+
+更多实操步骤请继续阅读：[快速开始](../quick_start) 与 [下载](../download) 小节。

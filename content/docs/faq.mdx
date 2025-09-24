@@ -17,6 +17,17 @@ import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
   <Accordion title="怎么在DC虚拟机中综合自己的设计？">
     <p>虚拟机中提供了数个实例工程，可以参考。虚拟机打开时应已经启动了DC，可以参考。</p>
   </Accordion>
+  <Accordion title="怎样使用BRAM？">
+    <p>可以使用旧版工具链，也可以在Rabbit上自行实现一个RAM组件。</p>
+  </Accordion>
+  <Accordion title="布局/布线/比特流……生成失败了，怎么办？">
+    <p>
+      首先检查项目路径和所有源文件路径是否包含非ASCII字符。例如汉字等都不可以出现在路径中。其次检查自己的设计，Yosys或DC综合中是否有警告信息。
+    </p>
+    <p>
+      还是无法解决时，可以尝试联系助教或者在课程群中发自己遇到的问题，助教、老师与同学会协助解决。软件也有一定可能遇到Bug。
+    </p>
+  </Accordion>
 </Accordions>
 
 ## Rabbit

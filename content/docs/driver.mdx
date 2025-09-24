@@ -1,0 +1,162 @@
+---
+title: 驱动
+description: 绕开Rabbit，自行交互
+---
+
+## 简介
+
+UFDE 负责将设计转换为比特流，而 Rabbit 负责验证自己的设计。
+可见，Rabbit 并非必须，只是一个虚拟器件的 GUI 平台。
+我们开源了访问底层访问 FPGA 开发板的驱动代码，可以自行使用不同的编程语言与开发板进行交互，从而实现更多的功能。
+
+## 编译与构建
+
+驱动使用 Rust 编写，所以你需要安装[Rust 工具链](https://www.rust-lang.org/zh-CN/tools/install)。
+
+Rust 编写的原版驱动代码见仓库[vlfd-rs](https://github.com/0xtaruhi/vlfd-rs)，
+我们同样提供了该仓库的 C 语言绑定[vlfd-ffi](https://github.com/0xtaruhi/vlfd-ffi)。
+
+鉴于同学们更可能使用 C 语言的驱动代码，接下来仅讲解如何使用这套代码用于自己的设计。
+
+```bash
+git clone https://github.com/0xtaruhi/vlfd-ffi
+cd vlfd-ffi
+cargo build --release
+```
+
+构建完毕后，你应该在`target/release`目录下找到`libvlfd_ffi.a`（以 macOS 平台为例），以及在仓库根目录下找到`vlfd_ffi.h`。
+
+这两个文件就是静态库以及 C 语言头文件。
+
+## 用到自己的项目中
+
+接下来以 C++为例，示范如何与开发板进行交互。
+
+我们使用 CMake 作为构建工具，首先新建一个文件夹，放入刚才编译得到的头文件与静态库，然后编写`main.cpp`文件：
+
+```cpp
+#include "vlfd_ffi.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+
+int main(int argc, char **argv) {
+  if (argc > 1) {
+    const char *bitfile = argv[1];
+    if (std::strlen(bitfile) > 4 &&
+        std::strcmp(bitfile + std::strlen(bitfile) - 4, ".bit") == 0) {
+      std::printf("Programming FPGA with bitfile: %s\n", bitfile);
+      int ret = vlfd_program_fpga(bitfile);
+      if (ret != 0) {
+        std::fprintf(stderr, "program failed: %s\n",
+                     vlfd_get_last_error_message());
+        return 10;
+      }
+      std::printf("Program success.\n");
+      return 0;
+    }
+  }
+
+  VlfdDevice *dev = vlfd_io_open();
+  if (!dev) {
+    std::fprintf(stderr, "open failed: %s\n", vlfd_get_last_error_message());
+    return 1;
+  }
+
+  const unsigned kWords = 8;
+  uint16_t tx[kWords];
+  uint16_t rx[kWords];
+  for (unsigned i = 0; i < kWords; ++i) {
+    tx[i] = static_cast<uint16_t>(i + 1);
+    rx[i] = 0;
+  }
+
+  if (vlfd_io_write_read(dev, tx, rx, kWords) != 0) {
+    std::fprintf(stderr, "write_read failed: %s\n",
+                 vlfd_get_last_error_message());
+    vlfd_io_close(dev);
+    return 2;
+  }
+
+  std::printf("RX:");
+  for (unsigned i = 0; i < kWords; ++i) {
+    std::printf(" %04x", rx[i]);
+  }
+  std::printf("\n");
+
+  if (vlfd_io_close(dev) != 0) {
+    std::fprintf(stderr, "close failed: %s\n", vlfd_get_last_error_message());
+    return 3;
+  }
+
+  return 0;
+}
+```
+
+该文件使用 C++20 编写，所以需要一个支持 C++20 的编译器。
+
+然后在文件夹根目录下创建`CMakeLists.txt`：
+
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(vlfd_cmake_demo C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+
+add_executable(vlfd_cmake_demo main.cpp)
+
+target_include_directories(vlfd_cmake_demo PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_directories(vlfd_cmake_demo PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(vlfd_cmake_demo PRIVATE vlfd_ffi)
+
+if(APPLE)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
+    find_library(IOKIT_FRAMEWORK IOKit)
+    find_library(SECURITY_FRAMEWORK Security)
+    target_link_libraries(vlfd_cmake_demo PRIVATE
+        ${COREFOUNDATION_FRAMEWORK}
+        ${IOKIT_FRAMEWORK}
+        ${SECURITY_FRAMEWORK}
+    )
+endif()
+```
+
+上面的流程在 macOS 平台上经过测试，其余平台可能需要略微修正。
+
+放入一个比特流文件，就可以尝试直接与 FPGA 开发板进行交互了。
+每个周期，你需要向开发板发送 64 个位，即 8 个字节。由于开发板限制 FIFO 大小为 1024 \* 16 bit，因此你一次性最多可以发送
+2048 字节，即 256 周期的数据。
+
+发送几个周期的数据，开发板就会返回几个周期的数据。返回的数据也是 64 位。
+
+每个管脚都对应具体的某一位，相关信息可以在 Rabbit 代码中找到。这里摘取重要信息如下：
+
+```cpp
+static const QHash<QString, int> input_decl_index_map{
+    {"P151", 0},  {"P148", 1},  {"P150", 2},  {"P152", 3},  {"P160", 4},
+    {"P161", 5},  {"P162", 6},  {"P163", 7},  {"P164", 8},  {"P165", 9},
+    {"P166", 10}, {"P169", 11}, {"P173", 12}, {"P174", 13}, {"P175", 14},
+    {"P191", 15}, {"P120", 16}, {"P116", 17}, {"P115", 18}, {"P114", 19},
+    {"P113", 20}, {"P112", 21}, {"P111", 22}, {"P108", 23}, {"P102", 24},
+    {"P101", 25}, {"P100", 26}, {"P97", 27},  {"P96", 28},  {"P95", 29},
+    {"P89", 30},  {"P88", 31},  {"P87", 32},  {"P86", 33},  {"P81", 34},
+    {"P75", 35},  {"P74", 36},  {"P70", 37},  {"P69", 38},  {"P68", 39},
+    {"P64", 40},  {"P62", 41},  {"P61", 42},  {"P58", 43},  {"P57", 44},
+    {"P49", 45},  {"P47", 46},  {"P48", 47},  {"P192", 48}, {"P193", 49},
+    {"P199", 50}, {"P200", 51}, {"P201", 52}, {"P202", 53}};
+
+static const QHash<QString, int> output_decl_index_map{
+    {"P7", 1},    {"P6", 2},    {"P5", 3},    {"P4", 4},    {"P9", 5},
+    {"P8", 6},    {"P16", 7},   {"P15", 8},   {"P11", 9},   {"P10", 10},
+    {"P20", 11},  {"P18", 12},  {"P17", 13},  {"P22", 14},  {"P21", 15},
+    {"P23", 16},  {"P44", 17},  {"P45", 18},  {"P46", 19},  {"P43", 20},
+    {"P40", 21},  {"P41", 22},  {"P42", 23},  {"P33", 24},  {"P34", 25},
+    {"P35", 26},  {"P36", 27},  {"P30", 28},  {"P31", 29},  {"P24", 30},
+    {"P27", 31},  {"P29", 32},  {"P110", 33}, {"P109", 34}, {"P99", 35},
+    {"P98", 36},  {"P94", 37},  {"P93", 38},  {"P84", 39},  {"P83", 40},
+    {"P82", 41},  {"P73", 42},  {"P71", 43},  {"P63", 44},  {"P60", 45},
+    {"P59", 46},  {"P56", 47},  {"P55", 48},  {"P167", 49}, {"P168", 50},
+    {"P176", 51}, {"P187", 52}, {"P189", 53}, {"P194", 54}};
+```
+
+比如，你需要向`P151`管脚写入高电平，只需要将第 0 位置 1 即可。

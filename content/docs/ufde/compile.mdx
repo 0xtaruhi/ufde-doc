@@ -3,3 +3,90 @@ title: 编译与构建
 description: 从环境准备到 UFDE 的完整构建流程
 ---
 
+## 准备
+
+UFDE 分为两个部分，一个是使用 Tauri 构建的前端，另一个是 C++编写的 FDE 工具链（后端）。
+代码分别可分别在 Github 仓库中的[ufde-next](https://github.com/0xtaruhi/ufde-next)和[FDE-Source](https://github.com/0xtaruhi/FDE-Source)
+中找到。
+
+## 编译 FDE 工具链
+
+FDE 工具链依赖于 [Boost](https://www.boost.org/releases/latest/)，一个流行的 C++工具库。
+你需要先编译 Boost。对于 Linux 和 macOS 平台，可以用 apt、dnf 或 brew 等包管理工具直接下载。
+
+编译好 Boost 后，可先克隆仓库
+
+```bash
+git clone https://github.com/0xtaruhi/FDE-Source
+cd FDE-Source
+```
+
+FDE 工具链使用 CMake 作为构建工具。
+
+```bash
+mkdir build && cd build
+cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
+ninja
+cmake --install .
+```
+
+此时应该能在`build/bin`文件夹下看到编译产物。
+
+## 编译 Yosys
+
+UFDE 使用的是 [Yosys 0.9](https://github.com/YosysHQ/yosys/releases/tag/yosys-0.9)，该版本略微老旧，感兴趣的同学可以尝试升级版本。但是
+新老版本的 Yosys 会有命令上的区别，若尝试升级需要修改脚本。建议没有 Yosys 基础的同学
+直接下载 0.9 版本。
+
+对于 macOS 平台，可以直接运行如下命令进行下载编译：
+
+```bash
+wget https://github.com/YosysHQ/yosys/archive/refs/tags/yosys-0.9.tar.gz
+tar -xzvf yosys-0.9.tar.gz
+cd yosys-yosys-0.9
+make config-clang
+make -j
+```
+
+其他平台可以参考解压后文件夹中的 README。
+
+## 编译 UFDE
+
+### 依赖准备
+
+- Rust 工具链：参考https://www.rust-lang.org/zh-CN/tools/install 进行安装。
+- PNPM：参考https://pnpm.io/zh/installation 。
+
+### 编译
+
+克隆仓库
+
+```bash
+git clone https://github.com/0xtaruhi/ufde-next
+cd ufde-next
+```
+
+安装依赖包
+
+```bash
+pnpm install
+```
+
+接下来，你需要将编译好的 FDE 工具链二进制文件放入`ufde-next/src-tauri/binaries/fde-cli`，
+将编译好的 Yosys（包括 yosys 与 yosys-abc）放入`ufde-next/src-tauri/binaries`。
+
+<Callout>
+  你可能需要重命名，例如将 `yosys`重命名为`yosys-aarch64-apple-darwin`。详细可以尝试运行`pnpm tauri dev`查看错误提示。
+</Callout>
+
+你可以运行如下命令打开程序（Debug 模式）：
+
+```bash
+pnpm tauri dev
+```
+
+你也可以运行如下命令构建安装包：
+
+```bash
+pnpm tauri build
+```
